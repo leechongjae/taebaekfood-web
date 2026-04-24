@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getOrder, Order } from "@/lib/orders";
 
-export default function WholesaleCompletePage() {
+function WholesaleCompleteContent() {
   const params = useSearchParams();
   const orderId = params.get("orderId");
   const [order, setOrder] = useState<Order | null>(null);
@@ -54,5 +54,13 @@ export default function WholesaleCompletePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function WholesaleCompletePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-400">불러오는 중...</div>}>
+      <WholesaleCompleteContent />
+    </Suspense>
   );
 }
