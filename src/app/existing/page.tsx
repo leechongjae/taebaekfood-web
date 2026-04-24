@@ -4,35 +4,82 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { logout } from "@/lib/auth";
+import { getBusinessClients, logout } from "@/lib/auth";
 import { getAssignedProductsWithDetail, CATEGORIES } from "@/lib/products";
 
 type AssignedProduct = Awaited<ReturnType<typeof getAssignedProductsWithDetail>>[number];
+
+export type WholesaleCartItem = {
+  productId: string;
+  productName: string;
+  category: string;
+  yongyang: string;
+  quantity: number;
+};
+
+function getCart(): WholesaleCartItem[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem("taebaek_wholesale_cart") ?? "[]"); }
+  catch { return []; }
+}
+function saveCart(cart: WholesaleCartItem[]) {
+  localStorage.setItem("taebaek_wholesale_cart", JSON.stringify(cart));
+}
 
 export default function ExistingPage() {
   const router = useRouter();
   const { user, profile, loading, refreshProfile } = useAuth();
   const [products, setProducts] = useState<AssignedProduct[]>([]);
   const [fetching, setFetching] = useState(false);
+  const [cart, setCart] = useState<WholesaleCartItem[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    refreshProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { refreshProfile(); }, []); // eslint-disable-line
 
   useEffect(() => {
     if (loading || !user) return;
     setFetching(true);
     getAssignedProductsWithDetail(user.uid).then((data) => {
       setProducts(data);
+      const init: Record<string, number> = {};
+      data.forEach((p) => { init[p.id] = 1; });
+      setQuantities(init);
       setFetching(false);
     });
+    setCart(getCart());
   }, [loading, user]);
 
   async function handleLogout() {
     await logout();
     router.push("/");
   }
+
+  function updateQty(productId: string, delta: number) {
+    setQuantities((prev) => ({ ...prev, [productId]: Math.max(1, (prev[productId] ?? 1) + delta) }));
+  }
+
+  function handleAddToCart(product: AssignedProduct) {
+    const qty = quantities[product.id] ?? 1;
+    const existing = cart.findIndex(
+      (c) => c.productId === product.id && c.yongyang === product.assignment.yongyang
+    );
+    let next: WholesaleCartItem[];
+    if (existing >= 0) {
+      next = cart.map((c, i) => i === existing ? { ...c, quantity: c.quantity + qty } : c);
+    } else {
+      next = [...cart, {
+        productId: product.id,
+        productName: product.name,
+        category: product.category,
+        yongyang: product.assignment.yongyang,
+        quantity: qty,
+      }];
+    }
+    setCart(next);
+    saveCart(next);
+  }
+
+  const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
 
   const grouped = CATEGORIES.reduce<Record<string, AssignedProduct[]>>((acc, cat) => {
     acc[cat] = products.filter((p) => p.category === cat);
@@ -49,35 +96,55 @@ export default function ExistingPage() {
           <h1 className="text-xl font-bold text-gray-800">태백식품</h1>
         </Link>
 
-        {!loading && (
-          user && profile ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-600">
-                <span className="font-semibold text-gray-800">{profile.name}</span> 님
-              </span>
-              {profile.isAdmin && (
-                <Link href="/admin" className="bg-orange-100 hover:bg-orange-200 text-orange-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                  관리자
-                </Link>
+        {!loading && (user && profile ? (
+          <div className="flex items-center gap-3">
+            {/* 장바구니 */}
+            <button
+              onClick={() => router.push("/existing/checkout")}
+              className="relative flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-1 bg-orange-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  {cartCount}
+                </span>
               )}
-              <button onClick={handleLogout} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                로그아웃
-              </button>
-            </div>
-          ) : (
-            <Link href="/login" className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-medium transition-colors">
-              로그인
-            </Link>
-          )
-        )}
+            </button>
+            <Link href="/my-orders" className="text-sm text-gray-600 hover:text-gray-900">내 주문</Link>
+            <span className="text-sm text-gray-600">
+              <span className="font-semibold text-gray-800">{profile.name}</span> 님
+            </span>
+            {profile.isAdmin && (
+              <Link href="/admin" className="bg-orange-100 hover:bg-orange-200 text-orange-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors">관리자</Link>
+            )}
+            <button onClick={handleLogout} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">로그아웃</button>
+          </div>
+        ) : (
+          <Link href="/login" className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-medium transition-colors">로그인</Link>
+        ))}
       </header>
 
       <div className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
         {!loading && user && profile ? (
           <>
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">안녕하세요, {profile.name} 님</h2>
-              <p className="text-gray-500 mt-1">주문 가능한 품목 목록입니다.</p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">안녕하세요, {profile.name} 님</h2>
+                <p className="text-gray-500 mt-1">주문 가능한 품목 목록입니다.</p>
+              </div>
+              {cartCount > 0 && (
+                <button
+                  onClick={() => router.push("/existing/checkout")}
+                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  주문서 작성 ({cartCount}개)
+                </button>
+              )}
             </div>
 
             {fetching ? (
@@ -102,11 +169,7 @@ export default function ExistingPage() {
                           <div key={product.id} className="flex flex-col">
                             <div className="aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50 mb-2">
                               {product.imageUrl ? (
-                                <img
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  className="w-full h-full object-cover"
-                                />
+                                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-gray-300">
                                   <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,14 +178,24 @@ export default function ExistingPage() {
                                 </div>
                               )}
                             </div>
-                            <p className="font-semibold text-gray-800 text-base mb-1 text-center">{product.name}</p>
-                            <div className="flex flex-col gap-0.5 text-sm text-gray-500 text-center">
-                              {product.assignment.yongyang && (
-                                <span>용량: <span className="text-gray-700 font-medium">{product.assignment.yongyang}</span></span>
-                              )}
-                              {product.assignment.label && (
-                                <span>라벨: <span className="text-gray-700 font-medium">{product.assignment.label}</span></span>
-                              )}
+                            <p className="font-semibold text-gray-800 text-sm mb-1 text-center">{product.name}</p>
+                            <div className="text-xs text-gray-500 text-center mb-2">
+                              {product.assignment.yongyang && <p>{product.assignment.yongyang}</p>}
+                              {product.assignment.label && <p className="text-gray-400">{product.assignment.label}</p>}
+                            </div>
+                            {/* 수량 + 담기 */}
+                            <div className="flex items-center gap-1 mt-auto">
+                              <div className="flex items-center border border-gray-200 rounded overflow-hidden flex-1">
+                                <button type="button" onClick={() => updateQty(product.id, -1)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-50 text-sm flex-shrink-0">−</button>
+                                <span className="flex-1 text-center text-xs font-medium">{quantities[product.id] ?? 1}</span>
+                                <button type="button" onClick={() => updateQty(product.id, 1)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-50 text-sm flex-shrink-0">+</button>
+                              </div>
+                              <button
+                                onClick={() => handleAddToCart(product)}
+                                className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2 py-1.5 rounded transition-colors whitespace-nowrap"
+                              >
+                                담기
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -141,16 +214,10 @@ export default function ExistingPage() {
               </svg>
             </div>
             <h2 className="text-3xl font-bold text-gray-800 mb-4">기존 거래처</h2>
-            <p className="text-gray-500 mb-8 leading-relaxed">
-              로그인 후 주문 가능한 품목을 확인하실 수 있습니다.
-            </p>
+            <p className="text-gray-500 mb-8 leading-relaxed">로그인 후 주문 가능한 품목을 확인하실 수 있습니다.</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/login" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors">
-                로그인하고 주문하기
-              </Link>
-              <Link href="/register" className="border-2 border-orange-500 text-orange-500 hover:bg-orange-50 px-8 py-3 rounded-lg font-semibold transition-colors">
-                회원가입
-              </Link>
+              <Link href="/login" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors">로그인하고 주문하기</Link>
+              <Link href="/register" className="border-2 border-orange-500 text-orange-500 hover:bg-orange-50 px-8 py-3 rounded-lg font-semibold transition-colors">회원가입</Link>
             </div>
             <div className="mt-8 pt-8 border-t border-gray-100">
               <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">← 처음 화면으로</Link>
