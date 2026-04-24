@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase";
 import { addGlobalProduct, CATEGORIES } from "@/lib/products";
 
 interface Props {
@@ -19,10 +21,28 @@ export default function AddProductModal({ onClose, onAdded }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState("");
   const [yongyang, setYongyang] = useState<string[]>([]);
   const [label, setLabel] = useState<string[]>([]);
   const [labelInput, setLabelInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setImageUrl("");
+  }
+
+  function handleRemoveImage() {
+    setImageFile(null);
+    setImagePreview("");
+    setImageUrl("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   function handleCategoryChange(val: string) {
     setCategory(val);
@@ -54,10 +74,17 @@ export default function AddProductModal({ onClose, onAdded }: Props) {
     try {
       const hasOpts = HAS_OPTIONS.includes(category);
 
+      let finalImageUrl = imageUrl.trim();
+      if (imageFile) {
+        const storageRef = ref(storage, `products/${Date.now()}_${imageFile.name}`);
+        await uploadBytes(storageRef, imageFile);
+        finalImageUrl = await getDownloadURL(storageRef);
+      }
+
       await addGlobalProduct({
         name: name.trim(),
         category,
-        imageUrl: imageUrl.trim(),
+        imageUrl: finalImageUrl,
         yongyang: hasOpts ? yongyang : [],
         magae: [],
         label: hasOpts ? label : [],
@@ -88,26 +115,42 @@ export default function AddProductModal({ onClose, onAdded }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-          {/* 이미지 URL */}
+          {/* 이미지 업로드 */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">이미지 URL</label>
-            <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            />
-            {imageUrl.trim() && (
-              <div className="mt-2 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 h-40 flex items-center justify-center">
-                <img
-                  src={imageUrl.trim()}
-                  alt="미리보기"
-                  className="h-full w-full object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
+            <label className="block text-sm font-semibold text-gray-700 mb-2">이미지</label>
+            {imagePreview ? (
+              <div className="relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 h-40">
+                <img src={imagePreview} alt="미리보기" className="w-full h-full object-contain" />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 bg-white rounded-full p-1 shadow text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-orange-400 hover:text-orange-400 transition-colors"
+              >
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-xs font-medium">클릭해서 이미지 업로드</span>
+                <span className="text-xs text-gray-300">JPG, PNG, WEBP</span>
+              </button>
             )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
           </div>
 
           {/* 카테고리 + 제품명 */}
