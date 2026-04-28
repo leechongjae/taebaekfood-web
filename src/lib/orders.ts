@@ -67,10 +67,11 @@ export async function getMyOrders(userId: string): Promise<Order[]> {
   const q = query(
     collection(db, "orders"),
     where("userId", "==", userId),
-    orderBy("createdAt", "desc")
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Order));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Order))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function getAllOrders(): Promise<Order[]> {

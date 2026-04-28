@@ -56,7 +56,7 @@ export default function LoginPage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="아이디를 입력하세요"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -70,7 +70,7 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="비밀번호를 입력하세요"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white py-3 rounded-lg font-semibold transition-colors duration-200"
+          className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white py-3 rounded-lg font-semibold transition-colors duration-200"
         >
           {submitting ? "로그인 중..." : "로그인"}
         </button>
@@ -96,17 +96,17 @@ export default function LoginPage() {
       <div className="flex flex-col gap-3">
         <Link
           href="/register"
-          className="w-full border-2 border-orange-500 text-orange-500 hover:bg-orange-50 py-3 rounded-lg font-semibold text-center transition-colors duration-200"
+          className="w-full border border-stone-200 hover:bg-stone-50 text-stone-700 py-3 rounded-lg font-semibold text-center transition-colors duration-200"
         >
           회원가입
         </Link>
 
         <div className="flex justify-center gap-6 mt-2 text-sm text-gray-500">
-          <Link href="/find-id" className="hover:text-orange-500 transition-colors">
+          <Link href="/find-id" className="hover:text-orange-600 transition-colors">
             아이디 찾기
           </Link>
           <span className="text-gray-300">|</span>
-          <Link href="/reset-password" className="hover:text-orange-500 transition-colors">
+          <Link href="/reset-password" className="hover:text-orange-600 transition-colors">
             비밀번호 재설정
           </Link>
         </div>

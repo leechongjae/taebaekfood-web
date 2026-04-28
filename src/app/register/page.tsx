@@ -96,7 +96,7 @@ export default function RegisterPage() {
               value={form.username}
               onChange={handleChange}
               placeholder="아이디를 입력하세요"
-              className="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+              className="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
             />
             <button
               type="button"
@@ -126,7 +126,7 @@ export default function RegisterPage() {
             value={form.password}
             onChange={handleChange}
             placeholder="비밀번호를 입력하세요 (8자 이상)"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -142,7 +142,7 @@ export default function RegisterPage() {
             value={form.passwordConfirm}
             onChange={handleChange}
             placeholder="비밀번호를 다시 입력하세요"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -158,7 +158,7 @@ export default function RegisterPage() {
             value={form.name}
             onChange={handleChange}
             placeholder="이름을 입력하세요"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -174,7 +174,7 @@ export default function RegisterPage() {
             value={form.phone}
             onChange={handleChange}
             placeholder="예: 010-0000-0000"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -190,7 +190,7 @@ export default function RegisterPage() {
             value={form.email}
             onChange={handleChange}
             placeholder="이메일을 입력하세요"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -232,7 +232,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white py-3 rounded-lg font-semibold transition-colors duration-200"
+          className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white py-3 rounded-lg font-semibold transition-colors duration-200"
         >
           {loading ? "가입 중..." : "회원가입"}
         </button>
@@ -240,7 +240,7 @@ export default function RegisterPage() {
 
       <div className="text-center mt-5 text-sm text-gray-500">
         이미 계정이 있으신가요?{" "}
-        <Link href="/login" className="text-orange-500 font-semibold hover:underline">
+        <Link href="/login" className="text-orange-600 font-semibold hover:underline">
           로그인
         </Link>
       </div>

@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="아이디를 입력하세요"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -83,7 +83,7 @@ export default function ResetPasswordPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="가입 시 등록한 이름을 입력하세요"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -97,7 +97,7 @@ export default function ResetPasswordPage() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="가입 시 등록한 연락처를 입력하세요"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
           />
         </div>
 
@@ -108,18 +108,18 @@ export default function ResetPasswordPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white py-3 rounded-lg font-semibold transition-colors duration-200"
+          className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white py-3 rounded-lg font-semibold transition-colors duration-200"
         >
           {loading ? "확인 중..." : "본인 확인"}
         </button>
       </form>
 
       <div className="flex justify-center gap-6 mt-8 text-sm text-gray-500">
-        <Link href="/login" className="hover:text-orange-500 transition-colors">로그인</Link>
+        <Link href="/login" className="hover:text-orange-600 transition-colors">로그인</Link>
         <span className="text-gray-300">|</span>
-        <Link href="/find-id" className="hover:text-orange-500 transition-colors">아이디 찾기</Link>
+        <Link href="/find-id" className="hover:text-orange-600 transition-colors">아이디 찾기</Link>
         <span className="text-gray-300">|</span>
-        <Link href="/register" className="hover:text-orange-500 transition-colors">회원가입</Link>
+        <Link href="/register" className="hover:text-orange-600 transition-colors">회원가입</Link>
       </div>
     </AuthLayout>
   );
