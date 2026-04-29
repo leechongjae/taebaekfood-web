@@ -84,17 +84,25 @@ export async function getClientAssignments(
   const snapshot = await getDocs(
     collection(db, "users", clientUid, "assignedProducts")
   );
-  return snapshot.docs.map((d) => {
+  const seen = new Set<string>();
+  const results: ClientAssignment[] = [];
+  for (const d of snapshot.docs) {
     const data = d.data() as Record<string, unknown>;
-    return {
-      productId: (data.productId ?? d.id) as string,
-      yongyang: (data.yongyang ?? data.yonggi ?? "") as string,
+    const productId = (data.productId ?? d.id) as string;
+    const yongyang = (data.yongyang ?? data.yonggi ?? "") as string;
+    const key = `${productId}::${yongyang}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push({
+      productId,
+      yongyang,
       magae: (data.magae ?? "") as string,
       label: (data.label ?? "") as string,
       boxType: (data.boxType ?? "") as string,
       boxQty: (data.boxQty ?? 0) as number,
-    };
-  });
+    });
+  }
+  return results;
 }
 
 export async function setClientAssignment(
