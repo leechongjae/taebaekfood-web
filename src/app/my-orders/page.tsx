@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { getMyOrders, Order, ORDER_STATUS_LABEL, OrderStatus } from "@/lib/orders";
+import { getMyOrders, Order, ORDER_STATUS_LABEL, OrderStatus, fmtQty } from "@/lib/orders";
 import Logo from "@/components/Logo";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -17,12 +17,14 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
   cancelled: "bg-red-50 text-red-600 border border-red-200",
 };
 
+const PAST_STATUSES: OrderStatus[] = ["shipped", "delivered"];
+
 export default function MyOrdersPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [filter, setFilter] = useState<"all" | "retail" | "wholesale">("all");
+  const [view, setView] = useState<"active" | "past">("active");
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -33,7 +35,9 @@ export default function MyOrdersPage() {
     getMyOrders(user.uid).then((data) => { setOrders(data); setFetching(false); });
   }, [user]);
 
-  const filtered = orders.filter((o) => filter === "all" || o.type === filter);
+  const activeOrders = orders.filter((o) => !PAST_STATUSES.includes(o.status));
+  const pastOrders = orders.filter((o) => PAST_STATUSES.includes(o.status));
+  const shown = view === "active" ? activeOrders : pastOrders;
 
   return (
     <main className="min-h-screen bg-stone-50 flex flex-col">
@@ -44,22 +48,23 @@ export default function MyOrdersPage() {
           </svg>
         </button>
         <Logo />
-        <span className="ml-1 text-sm font-semibold text-stone-700">내 주문 목록</span>
+        <span className="ml-1 text-sm font-semibold text-stone-700">주문 내역</span>
       </header>
 
       <div className="max-w-2xl mx-auto w-full px-6 py-8 flex-1">
         <div className="flex gap-1 bg-stone-100 rounded-xl p-1 w-fit mb-6">
-          {(["all", "retail", "wholesale"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                filter === f ? "bg-white text-stone-800 shadow-sm" : "text-stone-400 hover:text-stone-600"
-              }`}
-            >
-              {f === "all" ? "전체" : f === "retail" ? "소매" : "도매"}
-            </button>
-          ))}
+          <button
+            onClick={() => setView("active")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${view === "active" ? "bg-white text-stone-800 shadow-sm" : "text-stone-400 hover:text-stone-700"}`}
+          >
+            진행 중{activeOrders.length > 0 ? ` (${activeOrders.length})` : ""}
+          </button>
+          <button
+            onClick={() => setView("past")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${view === "past" ? "bg-white text-stone-800 shadow-sm" : "text-stone-400 hover:text-stone-700"}`}
+          >
+            이전 주문{pastOrders.length > 0 ? ` (${pastOrders.length})` : ""}
+          </button>
         </div>
 
         {fetching ? (
@@ -71,17 +76,21 @@ export default function MyOrdersPage() {
               </div>
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : shown.length === 0 ? (
           <div className="text-center py-24 text-stone-300">
             <svg className="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <p className="text-sm text-stone-400 mb-4">주문 내역이 없습니다.</p>
-            <Link href="/new" className="text-xs text-orange-600 hover:underline font-medium">상품 보러 가기</Link>
+            <p className="text-sm text-stone-400 mb-4">
+              {view === "active" ? "진행 중인 주문이 없습니다." : "이전 주문 내역이 없습니다."}
+            </p>
+            {view === "active" && (
+              <Link href="/existing" className="text-xs text-orange-600 hover:underline font-medium">주문하러 가기</Link>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((order) => (
+            {shown.map((order) => (
               <div key={order.id} className="bg-white rounded-2xl border border-stone-200 p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -102,7 +111,7 @@ export default function MyOrdersPage() {
                   {order.items.map((item, i) => (
                     <li key={i} className="flex justify-between text-sm">
                       <span className="text-stone-700">{item.productName} <span className="text-stone-400">({item.yongyang})</span></span>
-                      <span className="font-semibold text-stone-800">{item.quantity}개</span>
+                      <span className="font-semibold text-stone-800">{fmtQty(item)}</span>
                     </li>
                   ))}
                 </ul>

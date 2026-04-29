@@ -10,11 +10,14 @@ import {
 } from "@/lib/products";
 import AddProductModal from "@/components/AddProductModal";
 import {
-  getAllOrders, updateOrderStatus, Order, OrderStatus, ORDER_STATUS_LABEL,
+  getAllOrders, updateOrderStatus, Order, OrderItem, OrderStatus, ORDER_STATUS_LABEL, fmtQty,
 } from "@/lib/orders";
 import Logo from "@/components/Logo";
 
 type Tab = "clients" | "products" | "orders";
+type OrderView = "active" | "past";
+
+const PAST_STATUSES: OrderStatus[] = ["shipped", "delivered"];
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
   pending:   "bg-amber-50 text-amber-700",
@@ -51,6 +54,7 @@ export default function AdminPage() {
   const [seeding, setSeeding] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderFilter, setOrderFilter] = useState<"all" | "retail" | "wholesale">("all");
+  const [orderView, setOrderView] = useState<OrderView>("active");
 
   const SEED_PRODUCTS: Omit<Product, "id" | "createdAt">[] = [
     { name: "참기름", category: "기름", yongyang: ["300ml", "350ml", "1.75L", "1.8L", "16.5kg"], magae: [], label: [] },
@@ -150,7 +154,10 @@ export default function AdminPage() {
   const filteredClients = clients.filter(
     (c) => c.name.includes(search) || c.username.includes(search) || c.phone.includes(search)
   );
-  const filteredOrders = orders.filter((o) => orderFilter === "all" || o.type === orderFilter);
+  const typeFiltered = orders.filter((o) => orderFilter === "all" || o.type === orderFilter);
+  const activeOrders = typeFiltered.filter((o) => !PAST_STATUSES.includes(o.status));
+  const pastOrders = typeFiltered.filter((o) => PAST_STATUSES.includes(o.status));
+  const shownOrders = orderView === "active" ? activeOrders : pastOrders;
 
   const inputClass = "border border-stone-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white";
 
@@ -171,7 +178,10 @@ export default function AdminPage() {
           {(["clients", "products", "orders"] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === t ? "bg-white text-stone-800 shadow-sm" : "text-stone-400 hover:text-stone-700"}`}>
-              {t === "clients" ? "거래처 관리" : t === "products" ? "제품 관리" : `주문 관리${orders.length > 0 ? ` (${orders.length})` : ""}`}
+              {t === "clients" ? "거래처 관리" : t === "products" ? "제품 관리" : (() => {
+              const active = orders.filter((o) => !PAST_STATUSES.includes(o.status));
+              return `주문 관리${active.length > 0 ? ` (${active.length})` : ""}`;
+            })()}
             </button>
           ))}
         </div>
@@ -338,6 +348,19 @@ export default function AdminPage() {
         {/* 주문 관리 */}
         {tab === "orders" && (
           <>
+            {/* 진행중 / 이전주문 서브탭 */}
+            <div className="flex gap-1 bg-stone-100 rounded-xl p-1 w-fit mb-4">
+              <button onClick={() => setOrderView("active")}
+                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${orderView === "active" ? "bg-white text-stone-800 shadow-sm" : "text-stone-400 hover:text-stone-700"}`}>
+                진행 중{activeOrders.length > 0 ? ` (${activeOrders.length})` : ""}
+              </button>
+              <button onClick={() => setOrderView("past")}
+                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${orderView === "past" ? "bg-white text-stone-800 shadow-sm" : "text-stone-400 hover:text-stone-700"}`}>
+                이전 주문{pastOrders.length > 0 ? ` (${pastOrders.length})` : ""}
+              </button>
+            </div>
+
+            {/* 소매/도매 필터 */}
             <div className="flex gap-1 bg-stone-100 rounded-xl p-1 w-fit mb-4">
               {(["all", "retail", "wholesale"] as const).map((f) => (
                 <button key={f} onClick={() => setOrderFilter(f)}
@@ -347,14 +370,19 @@ export default function AdminPage() {
               ))}
             </div>
 
-            {filteredOrders.length === 0 ? (
-              <div className="text-center py-16 text-stone-400 text-sm">주문 내역이 없습니다.</div>
+            {shownOrders.length === 0 ? (
+              <div className="text-center py-16 text-stone-400 text-sm">
+                {orderView === "active" ? "진행 중인 주문이 없습니다." : "이전 주문 내역이 없습니다."}
+              </div>
             ) : (
               <div className="space-y-3">
-                {filteredOrders.map((order) => (
+                {shownOrders.map((order) => (
                   <div key={order.id} className={`rounded-xl border p-5 ${STATUS_CARD[order.status]}`}>
                     <div className="flex items-start justify-between mb-3 gap-4">
                       <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLOR[order.status]}`}>
+                          {ORDER_STATUS_LABEL[order.status]}
+                        </span>
                         <span className="text-xs text-stone-500 bg-white/70 px-2 py-0.5 rounded-full border border-stone-200">
                           {order.type === "retail" ? "소매" : "도매"}
                         </span>
@@ -365,10 +393,10 @@ export default function AdminPage() {
                       <p className="text-xs text-stone-400 whitespace-nowrap">배송 희망일: <span className="font-medium text-stone-600">{order.deliveryDate}</span></p>
                     </div>
                     <ul className="space-y-1 mb-3">
-                      {order.items.map((item, i) => (
+                      {order.items.map((item: OrderItem, i: number) => (
                         <li key={i} className="flex justify-between text-sm">
                           <span className="text-stone-700">{item.productName} <span className="text-stone-400">({item.yongyang})</span></span>
-                          <span className="font-medium text-stone-800">{item.quantity}개</span>
+                          <span className="font-medium text-stone-800">{fmtQty(item)}</span>
                         </li>
                       ))}
                     </ul>
@@ -377,19 +405,27 @@ export default function AdminPage() {
                       <p>{order.address}</p>
                       {order.memo && <p className="text-stone-400">비고: {order.memo}</p>}
                     </div>
-                    <div className="flex justify-end">
-                      <select value={order.status}
-                        onChange={async (e) => {
-                          const s = e.target.value as OrderStatus;
-                          await updateOrderStatus(order.id, s);
-                          setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: s } : o));
-                        }}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 ${STATUS_COLOR[order.status]}`}>
-                        {(Object.keys(ORDER_STATUS_LABEL) as OrderStatus[]).map((s) => (
-                          <option key={s} value={s}>{ORDER_STATUS_LABEL[s]}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {orderView === "active" ? (
+                      <div className="flex justify-end">
+                        <select value={order.status}
+                          onChange={async (e) => {
+                            const s = e.target.value as OrderStatus;
+                            await updateOrderStatus(order.id, s);
+                            setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: s } : o));
+                          }}
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 ${STATUS_COLOR[order.status]}`}>
+                          {(Object.keys(ORDER_STATUS_LABEL) as OrderStatus[]).map((s) => (
+                            <option key={s} value={s}>{ORDER_STATUS_LABEL[s]}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="flex justify-end">
+                        <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${STATUS_COLOR[order.status]}`}>
+                          {ORDER_STATUS_LABEL[order.status]}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
