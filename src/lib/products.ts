@@ -9,14 +9,16 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 
+export const BOX_TYPES = ["1", "2", "3", "4", "5", "5-1", "5-2", "6", "8"] as const;
+
 export interface Product {
   id: string;
   name: string;
   category: string;
   imageUrl?: string;
-  yongyang: string[];  // 용량 선택지
-  magae: string[];     // 마개 선택지
-  label: string[];     // 라벨 선택지
+  yongyang: string[];
+  magae: string[];
+  label: string[];
   createdAt: string;
 }
 
@@ -25,6 +27,8 @@ export interface ClientAssignment {
   yongyang: string;
   magae: string;
   label: string;
+  boxType?: string;
+  boxQty?: number;
 }
 
 export const CATEGORIES = ["기름", "가루", "부자재", "기타"];
@@ -83,10 +87,12 @@ export async function getClientAssignments(
   return snapshot.docs.map((d) => {
     const data = d.data() as Record<string, unknown>;
     return {
-      productId: d.id,
+      productId: (data.productId ?? d.id) as string,
       yongyang: (data.yongyang ?? data.yonggi ?? "") as string,
       magae: (data.magae ?? "") as string,
       label: (data.label ?? "") as string,
+      boxType: (data.boxType ?? "") as string,
+      boxQty: (data.boxQty ?? 0) as number,
     };
   });
 }
@@ -95,23 +101,20 @@ export async function setClientAssignment(
   clientUid: string,
   assignment: ClientAssignment
 ): Promise<void> {
-  const { productId, ...rest } = assignment;
-  await setDoc(
-    doc(db, "users", clientUid, "assignedProducts", productId),
-    rest
-  );
+  const { productId, yongyang, ...rest } = assignment;
+  const docId = yongyang ? `${productId}::${yongyang}` : productId;
+  await setDoc(doc(db, "users", clientUid, "assignedProducts", docId), { productId, yongyang, ...rest });
 }
 
 export async function removeClientAssignment(
   clientUid: string,
-  productId: string
+  productId: string,
+  yongyang?: string
 ): Promise<void> {
-  await deleteDoc(
-    doc(db, "users", clientUid, "assignedProducts", productId)
-  );
+  const docId = yongyang ? `${productId}::${yongyang}` : productId;
+  await deleteDoc(doc(db, "users", clientUid, "assignedProducts", docId));
 }
 
-// 거래처의 배정된 제품 + 상세 정보 합쳐서 반환
 export async function getAssignedProductsWithDetail(
   clientUid: string
 ): Promise<(Product & { assignment: Omit<ClientAssignment, "productId"> })[]> {
@@ -119,15 +122,22 @@ export async function getAssignedProductsWithDetail(
     getProducts(),
     getClientAssignments(clientUid),
   ]);
-  const assignMap = new Map(assignments.map((a) => [a.productId, a]));
-  return allProducts
-    .filter((p) => assignMap.has(p.id))
-    .map((p) => ({
-      ...p,
+  const productMap = new Map(allProducts.map((p) => [p.id, p]));
+  return assignments
+    .filter((a) => productMap.has(a.productId) && a.yongyang)
+    .map((a) => ({
+      ...productMap.get(a.productId)!,
       assignment: {
-        yongyang: assignMap.get(p.id)!.yongyang,
-        magae: assignMap.get(p.id)!.magae,
-        label: assignMap.get(p.id)!.label,
+        yongyang: a.yongyang,
+        magae: a.magae,
+        label: a.label,
+        boxType: a.boxType,
+        boxQty: a.boxQty,
       },
-    }));
+    }))
+    .sort(
+      (a, b) =>
+        CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) ||
+        a.name.localeCompare(b.name, "ko")
+    );
 }
