@@ -194,7 +194,19 @@ export default function ExistingPage() {
                             <div className="flex items-center gap-1 mt-auto">
                               <div className="flex items-center border border-stone-200 rounded-lg overflow-hidden flex-1">
                                 <button type="button" onClick={() => updateQty(`${product.id}::${product.assignment.yongyang}`, -1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm flex-shrink-0">−</button>
-                                <span className="flex-1 text-center text-xs font-medium text-stone-700">{quantities[`${product.id}::${product.assignment.yongyang}`] ?? 1}</span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={quantities[`${product.id}::${product.assignment.yongyang}`] ?? 1}
+                                  onChange={(e) => {
+                                    const v = parseInt(e.target.value.replace(/\D/g, ""));
+                                    const key = `${product.id}::${product.assignment.yongyang}`;
+                                    setQuantities((prev) => ({ ...prev, [key]: isNaN(v) ? 1 : Math.max(1, v) }));
+                                  }}
+                                  onFocus={(e) => e.target.select()}
+                                  className="flex-1 w-0 min-w-0 text-center text-xs font-medium text-stone-700 focus:outline-none bg-transparent"
+                                />
                                 <button type="button" onClick={() => updateQty(`${product.id}::${product.assignment.yongyang}`, 1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm flex-shrink-0">+</button>
                               </div>
                               <button

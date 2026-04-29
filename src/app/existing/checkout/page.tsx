@@ -109,7 +109,7 @@ export default function WholesaleCheckoutPage() {
     try {
       const orderId = await createOrder({
         userId: user.uid, userEmail: user.email ?? "", type: "wholesale",
-        items: cart.map((c) => ({ productId: c.productId, productName: c.productName, category: c.category, yongyang: c.yongyang, quantity: c.quantity })),
+        items: cart.map((c) => ({ productId: c.productId, productName: c.productName, category: c.category, yongyang: c.yongyang, quantity: c.quantity, unit: c.unit, boxType: c.boxType, boxQty: c.boxQty })),
         ordererName: form.ordererName, phone: form.phone, address: fullAddress, deliveryDate: form.deliveryDate, memo: form.memo,
       });
       saveCart([]);
@@ -156,10 +156,37 @@ export default function WholesaleCheckoutPage() {
                     <p className="text-xs text-stone-400 mt-0.5">{item.yongyang}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center border border-stone-200 rounded-lg overflow-hidden">
-                      <button type="button" onClick={() => updateQty(idx, -1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm">−</button>
-                      <span className="w-8 text-center text-xs font-medium text-stone-700">{item.quantity}</span>
-                      <button type="button" onClick={() => updateQty(idx, 1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm">+</button>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <div className="flex items-center border border-stone-200 rounded-lg overflow-hidden">
+                        <button type="button" onClick={() => updateQty(idx, -1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm">−</button>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value.replace(/\D/g, ""));
+                            if (!isNaN(v) && v >= 1) {
+                              const next = cart.map((c, i) => i === idx ? { ...c, quantity: v } : c);
+                              setCart(next); saveCart(next);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            if (!e.target.value || parseInt(e.target.value) < 1) {
+                              const next = cart.map((c, i) => i === idx ? { ...c, quantity: 1 } : c);
+                              setCart(next); saveCart(next);
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          className="w-10 text-center text-xs font-medium text-stone-700 focus:outline-none bg-transparent"
+                        />
+                        <button type="button" onClick={() => updateQty(idx, 1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm">+</button>
+                      </div>
+                      <span className="text-[10px] text-stone-400">
+                        {item.unit === "박스" && item.boxQty
+                          ? `${item.unit} (${item.quantity * item.boxQty}개)`
+                          : item.unit ?? "개"}
+                      </span>
                     </div>
                     <button type="button" onClick={() => removeItem(idx)} className="text-stone-300 hover:text-red-400 transition-colors p-1">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
