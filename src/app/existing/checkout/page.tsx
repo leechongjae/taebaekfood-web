@@ -97,6 +97,7 @@ export default function WholesaleCheckoutPage() {
     e.preventDefault();
     if (!user) return;
     if (cart.length === 0) { alert("장바구니가 비어 있습니다."); return; }
+    if (cart.some((c) => c.quantity < 1)) { alert("수량을 1 이상 입력해주세요."); return; }
     if (!form.ordererName || !form.phone || !form.address || !form.deliveryDate) {
       alert("필수 항목을 모두 입력해주세요."); return;
     }
@@ -163,19 +164,12 @@ export default function WholesaleCheckoutPage() {
                           type="text"
                           inputMode="numeric"
                           pattern="[0-9]*"
-                          value={item.quantity}
+                          value={item.quantity || ""}
                           onChange={(e) => {
-                            const v = parseInt(e.target.value.replace(/\D/g, ""));
-                            if (!isNaN(v) && v >= 1) {
-                              const next = cart.map((c, i) => i === idx ? { ...c, quantity: v } : c);
-                              setCart(next); saveCart(next);
-                            }
-                          }}
-                          onBlur={(e) => {
-                            if (!e.target.value || parseInt(e.target.value) < 1) {
-                              const next = cart.map((c, i) => i === idx ? { ...c, quantity: 1 } : c);
-                              setCart(next); saveCart(next);
-                            }
+                            const raw = e.target.value.replace(/\D/g, "");
+                            const v = raw === "" ? 0 : parseInt(raw);
+                            const next = cart.map((c, i) => i === idx ? { ...c, quantity: v } : c);
+                            setCart(next); saveCart(next);
                           }}
                           onFocus={(e) => e.target.select()}
                           className="w-10 text-center text-xs font-medium text-stone-700 focus:outline-none bg-transparent"

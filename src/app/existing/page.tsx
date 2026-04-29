@@ -60,12 +60,13 @@ export default function ExistingPage() {
   }
 
   function updateQty(productId: string, delta: number) {
-    setQuantities((prev) => ({ ...prev, [productId]: Math.max(1, (prev[productId] ?? 1) + delta) }));
+    setQuantities((prev) => ({ ...prev, [productId]: Math.max(1, (prev[productId] || 1) + delta) }));
   }
 
   function handleAddToCart(product: AssignedProduct) {
     const qKey = `${product.id}::${product.assignment.yongyang}`;
-    const qty = quantities[qKey] ?? 1;
+    const qty = quantities[qKey] || 0;
+    if (qty < 1) { alert("수량을 입력해주세요."); return; }
     const { boxType, boxQty } = product.assignment;
     const existing = cart.findIndex(
       (c) => c.productId === product.id && c.yongyang === product.assignment.yongyang
@@ -198,11 +199,11 @@ export default function ExistingPage() {
                                   type="text"
                                   inputMode="numeric"
                                   pattern="[0-9]*"
-                                  value={quantities[`${product.id}::${product.assignment.yongyang}`] ?? 1}
+                                  value={quantities[`${product.id}::${product.assignment.yongyang}`] || ""}
                                   onChange={(e) => {
-                                    const v = parseInt(e.target.value.replace(/\D/g, ""));
+                                    const raw = e.target.value.replace(/\D/g, "");
                                     const key = `${product.id}::${product.assignment.yongyang}`;
-                                    setQuantities((prev) => ({ ...prev, [key]: isNaN(v) ? 1 : Math.max(1, v) }));
+                                    setQuantities((prev) => ({ ...prev, [key]: raw === "" ? 0 : parseInt(raw) }));
                                   }}
                                   onFocus={(e) => e.target.select()}
                                   className="flex-1 w-0 min-w-0 text-center text-xs font-medium text-stone-700 focus:outline-none bg-transparent"
