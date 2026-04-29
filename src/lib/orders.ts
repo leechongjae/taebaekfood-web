@@ -34,6 +34,16 @@ export interface OrderItem {
   category: string;
   yongyang: string;
   quantity: number;
+  unit?: "박스" | "개";
+  boxType?: string;
+  boxQty?: number;
+}
+
+export function fmtQty(item: OrderItem): string {
+  if (item.unit === "박스" && item.boxQty) {
+    return `${item.quantity}박스(${item.boxType}호) · ${item.quantity * item.boxQty}개`;
+  }
+  return `${item.quantity}개`;
 }
 
 export interface Order {
@@ -55,11 +65,12 @@ export interface Order {
 export async function createOrder(
   order: Omit<Order, "id" | "createdAt" | "status"> & { type: "retail" | "wholesale" }
 ): Promise<string> {
-  const ref = await addDoc(collection(db, "orders"), {
+  const data = JSON.parse(JSON.stringify({
     ...order,
     status: "pending",
     createdAt: new Date().toISOString(),
-  });
+  }));
+  const ref = await addDoc(collection(db, "orders"), data);
   return ref.id;
 }
 
