@@ -17,6 +17,9 @@ export type WholesaleCartItem = {
   category: string;
   yongyang: string;
   quantity: number;
+  unit: "박스" | "개";
+  boxType?: string;
+  boxQty?: number;
 };
 
 function getCart(): WholesaleCartItem[] {
@@ -44,7 +47,7 @@ export default function ExistingPage() {
     getAssignedProductsWithDetail(user.uid).then((data) => {
       setProducts(data);
       const init: Record<string, number> = {};
-      data.forEach((p) => { init[p.id] = 1; });
+      data.forEach((p) => { init[`${p.id}::${p.assignment.yongyang}`] = 1; });
       setQuantities(init);
       setFetching(false);
     });
@@ -61,7 +64,9 @@ export default function ExistingPage() {
   }
 
   function handleAddToCart(product: AssignedProduct) {
-    const qty = quantities[product.id] ?? 1;
+    const qKey = `${product.id}::${product.assignment.yongyang}`;
+    const qty = quantities[qKey] ?? 1;
+    const { boxType, boxQty } = product.assignment;
     const existing = cart.findIndex(
       (c) => c.productId === product.id && c.yongyang === product.assignment.yongyang
     );
@@ -75,6 +80,9 @@ export default function ExistingPage() {
         category: product.category,
         yongyang: product.assignment.yongyang,
         quantity: qty,
+        unit: boxType ? "박스" : "개",
+        boxType: boxType || undefined,
+        boxQty: boxQty || undefined,
       }];
     }
     setCart(next);
@@ -159,10 +167,10 @@ export default function ExistingPage() {
                       <div className="px-6 py-3 bg-orange-50 border-b border-orange-100">
                         <h3 className="font-semibold text-orange-700 text-sm">{cat}</h3>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 p-5">
                         {items.map((product) => (
-                          <div key={product.id} className="flex flex-col">
-                            <div className="aspect-square rounded-xl overflow-hidden border border-stone-100 bg-stone-50 mb-2">
+                          <div key={`${product.id}::${product.assignment.yongyang}`} className="flex flex-col">
+                            <div className="aspect-[4/5] rounded-xl overflow-hidden border border-stone-100 bg-stone-50 mb-2">
                               {product.imageUrl ? (
                                 <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
                               ) : (
@@ -177,18 +185,23 @@ export default function ExistingPage() {
                             <div className="text-xs text-stone-400 text-center mb-2">
                               {product.assignment.yongyang && <p className="text-stone-500">{product.assignment.yongyang}</p>}
                               {product.assignment.label && <p>{product.assignment.label}</p>}
+                              {product.assignment.boxType && product.assignment.boxQty ? (
+                                <p className="text-orange-500 font-medium mt-0.5">
+                                  {product.assignment.boxType}호 박스 · 1박스 = {product.assignment.boxQty}개
+                                </p>
+                              ) : null}
                             </div>
                             <div className="flex items-center gap-1 mt-auto">
                               <div className="flex items-center border border-stone-200 rounded-lg overflow-hidden flex-1">
-                                <button type="button" onClick={() => updateQty(product.id, -1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm flex-shrink-0">−</button>
-                                <span className="flex-1 text-center text-xs font-medium text-stone-700">{quantities[product.id] ?? 1}</span>
-                                <button type="button" onClick={() => updateQty(product.id, 1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm flex-shrink-0">+</button>
+                                <button type="button" onClick={() => updateQty(`${product.id}::${product.assignment.yongyang}`, -1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm flex-shrink-0">−</button>
+                                <span className="flex-1 text-center text-xs font-medium text-stone-700">{quantities[`${product.id}::${product.assignment.yongyang}`] ?? 1}</span>
+                                <button type="button" onClick={() => updateQty(`${product.id}::${product.assignment.yongyang}`, 1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm flex-shrink-0">+</button>
                               </div>
                               <button
                                 onClick={() => handleAddToCart(product)}
                                 className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap font-medium"
                               >
-                                담기
+                                {product.assignment.boxType ? "박스 담기" : "담기"}
                               </button>
                             </div>
                           </div>
