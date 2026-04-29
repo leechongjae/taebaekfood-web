@@ -97,9 +97,6 @@ export default function MyOrdersPage() {
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLOR[order.status]}`}>
                       {ORDER_STATUS_LABEL[order.status]}
                     </span>
-                    <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">
-                      {order.type === "retail" ? "소매" : "도매"}
-                    </span>
                     <span className="text-xs text-stone-400">
                       {new Date(order.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
                     </span>
