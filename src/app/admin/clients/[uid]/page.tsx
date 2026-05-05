@@ -155,8 +155,8 @@ export default function ClientProductsPage({
   const sel = "border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white";
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col pb-24">
-      <header className="bg-white shadow-sm px-6 py-4 flex items-center gap-4 sticky top-0 z-10">
+    <main className="min-h-screen flex flex-col pb-24">
+      <header className="bg-white/80 backdrop-blur-sm shadow-sm px-6 py-4 flex items-center gap-4 sticky top-0 z-10">
         <button onClick={handleBack} className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

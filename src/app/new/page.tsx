@@ -71,8 +71,8 @@ export default function NewPage() {
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
 
   return (
-    <main className="min-h-screen bg-stone-50 flex flex-col">
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-10">
+    <main className="min-h-screen flex flex-col">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200/60 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-4 text-sm text-stone-500">
@@ -168,8 +168,8 @@ export default function NewPage() {
           </div>
 
           {fetching ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
                 <div key={i} className="animate-pulse">
                   <div className="aspect-square bg-stone-100 rounded-xl mb-3" />
                   <div className="h-3 bg-stone-100 rounded w-2/3 mb-2" />
@@ -185,12 +185,12 @@ export default function NewPage() {
               <p className="text-sm">등록된 상품이 없습니다</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-5 gap-y-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-8">
               {filtered.map((product) => {
                 const sel = selections[product.id] ?? { yongyang: "", qty: 1 };
                 return (
                   <div key={product.id} className="group">
-                    <div className="aspect-square bg-white border border-stone-100 rounded-xl overflow-hidden mb-3 relative">
+                    <div className="aspect-[4/5] bg-white border border-stone-100 rounded-xl overflow-hidden mb-3 relative">
                       {product.imageUrl ? (
                         <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       ) : (

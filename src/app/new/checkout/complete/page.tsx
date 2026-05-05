@@ -16,13 +16,13 @@ function CompleteContent() {
   }, [orderId]);
 
   return (
-    <main className="min-h-screen bg-stone-50 flex flex-col">
-      <header className="bg-white border-b border-stone-200 px-6 py-4">
+    <main className="min-h-screen flex flex-col">
+      <header className="bg-white/70 backdrop-blur-sm border-b border-stone-200/60 px-6 py-4">
         <Logo />
       </header>
 
       <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="bg-white rounded-2xl border border-stone-200 p-10 max-w-md w-full text-center shadow-sm">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200/70 p-10 max-w-md w-full text-center shadow-sm">
           <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-5">
             <svg className="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />

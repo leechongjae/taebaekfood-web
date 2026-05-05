@@ -98,8 +98,8 @@ export default function ExistingPage() {
   }, {});
 
   return (
-    <main className="min-h-screen bg-stone-50 flex flex-col">
-      <header className="bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+    <main className="min-h-screen flex flex-col">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200/60 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <Logo />
         {!loading && (user && profile ? (
           <div className="flex items-center gap-3">

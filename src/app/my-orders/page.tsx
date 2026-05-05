@@ -40,8 +40,8 @@ export default function MyOrdersPage() {
   const shown = view === "active" ? activeOrders : pastOrders;
 
   return (
-    <main className="min-h-screen bg-stone-50 flex flex-col">
-      <header className="bg-white border-b border-stone-200 px-6 py-4 flex items-center gap-4">
+    <main className="min-h-screen flex flex-col">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200/60 px-6 py-4 flex items-center gap-4">
         <button onClick={() => router.back()} className="text-stone-400 hover:text-stone-700 transition-colors">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

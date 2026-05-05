@@ -17,8 +17,8 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 flex flex-col">
-      <header className="bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between">
+    <main className="min-h-screen flex flex-col">
+      <header className="bg-white/70 backdrop-blur-sm border-b border-stone-200/60 px-6 py-4 flex items-center justify-between">
         <Logo />
         {!loading && (
           user && profile ? (
@@ -57,7 +57,7 @@ export default function HomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
           <Link href="/existing" className="group">
-            <div className="bg-white rounded-2xl border border-stone-200 p-8 flex flex-col items-center text-center hover:border-orange-300 hover:shadow-md transition-all duration-200 h-full">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200/70 p-8 flex flex-col items-center text-center hover:border-orange-300 hover:shadow-md transition-all duration-200 h-full">
               <div className="w-16 h-16 bg-orange-50 rounded-xl flex items-center justify-center mb-5 group-hover:bg-orange-100 transition-colors">
                 <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -78,7 +78,7 @@ export default function HomePage() {
           </Link>
 
           <Link href="/new" className="group">
-            <div className="bg-white rounded-2xl border border-stone-200 p-8 flex flex-col items-center text-center hover:border-orange-300 hover:shadow-md transition-all duration-200 h-full">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200/70 p-8 flex flex-col items-center text-center hover:border-orange-300 hover:shadow-md transition-all duration-200 h-full">
               <div className="w-16 h-16 bg-orange-50 rounded-xl flex items-center justify-center mb-5 group-hover:bg-orange-100 transition-colors">
                 <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -98,6 +98,10 @@ export default function HomePage() {
             </div>
           </Link>
         </div>
+
+        <p className="mt-10 text-stone-400 text-xs tracking-widest">
+          자연에서 온 참기름 · 들기름 · 들깨가루
+        </p>
       </section>
 
       <SiteFooter />
