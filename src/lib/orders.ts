@@ -60,6 +60,7 @@ export interface Order {
   status: OrderStatus;
   paymentKey?: string;
   createdAt: string;
+  groupId?: string;
 }
 
 export async function createOrder(
@@ -72,6 +73,14 @@ export async function createOrder(
   }));
   const ref = await addDoc(collection(db, "orders"), data);
   return ref.id;
+}
+
+export async function getOrdersByGroupId(groupId: string): Promise<Order[]> {
+  const q = query(collection(db, "orders"), where("groupId", "==", groupId));
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Order))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export async function getMyOrders(userId: string): Promise<Order[]> {

@@ -106,14 +106,18 @@ export default function CheckoutPage() {
     }
     setSubmitting(true);
     const fullAddress = form.addressDetail ? `${form.address} ${form.addressDetail}` : form.address;
+    const groupId = Date.now().toString(36) + Math.random().toString(36).slice(2);
     try {
-      const orderId = await createOrder({
-        userId: user.uid, userEmail: user.email ?? "", type: "retail",
-        items: cart.map((c) => ({ productId: c.productId, productName: c.productName, category: c.category, yongyang: c.yongyang, quantity: c.quantity })),
-        ordererName: form.ordererName, phone: form.phone, address: fullAddress, deliveryDate: form.deliveryDate, memo: form.memo,
-      });
+      for (const c of cart) {
+        await createOrder({
+          userId: user.uid, userEmail: user.email ?? "", type: "retail",
+          items: [{ productId: c.productId, productName: c.productName, category: c.category, yongyang: c.yongyang, quantity: c.quantity }],
+          ordererName: form.ordererName, phone: form.phone, address: fullAddress, deliveryDate: form.deliveryDate, memo: form.memo,
+          groupId,
+        });
+      }
       saveCart([]);
-      router.push(`/new/checkout/complete?orderId=${orderId}`);
+      router.push(`/new/checkout/complete?groupId=${groupId}`);
     } catch (err) {
       console.error(err);
       alert("주문 중 오류가 발생했습니다. 다시 시도해주세요.");

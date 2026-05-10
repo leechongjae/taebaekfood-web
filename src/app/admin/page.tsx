@@ -1,21 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { getBusinessClients, UserProfile, logout } from "@/lib/auth";
+import { logout } from "@/lib/auth";
+import { getClients, Client } from "@/lib/clients";
 import {
-  getProducts, addGlobalProduct, updateGlobalProduct, deleteGlobalProduct, Product,
+  getProducts, updateGlobalProduct, deleteGlobalProduct, Product, CATEGORIES,
 } from "@/lib/products";
 import AddProductModal from "@/components/AddProductModal";
 import {
   getAllOrders, updateOrderStatus, Order, OrderItem, OrderStatus, ORDER_STATUS_LABEL, fmtQty,
 } from "@/lib/orders";
 import Logo from "@/components/Logo";
+import { storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 type Tab = "clients" | "products" | "orders";
 type OrderView = "active" | "past";
+type ProductSort = "category" | "alpha" | "clients";
 
 const PAST_STATUSES: OrderStatus[] = ["shipped", "delivered"];
 
@@ -42,41 +46,24 @@ export default function AdminPage() {
   const { user, profile, loading } = useAuth();
   const [tab, setTab] = useState<Tab>("clients");
 
-  const [clients, setClients] = useState<UserProfile[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [labelInput, setLabelInput] = useState("");
-  const [yongyangInput, setYongyangInput] = useState("");
-  const [magaeInput, setMagaeInput] = useState("");
   const [fetching, setFetching] = useState(true);
-  const [seeding, setSeeding] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderFilter, setOrderFilter] = useState<"all" | "retail" | "wholesale">("all");
   const [orderView, setOrderView] = useState<OrderView>("active");
-
-  const SEED_PRODUCTS: Omit<Product, "id" | "createdAt">[] = [
-    { name: "참기름", category: "기름", yongyang: ["300ml", "350ml", "1.75L", "1.8L", "16.5kg"], magae: [], label: [] },
-    { name: "들기름", category: "기름", yongyang: ["300ml", "350ml", "1.75L", "1.8L", "16.5kg"], magae: [], label: [] },
-    { name: "향미유", category: "기름", yongyang: ["300ml", "350ml", "1.75L", "1.8L"], magae: [], label: [] },
-    { name: "들깨가루", category: "가루", yongyang: ["200g", "400g", "1kg", "4kg", "20kg"], magae: [], label: [] },
-    { name: "탈피들깨가루", category: "가루", yongyang: ["200g", "400g", "1kg", "4kg", "20kg"], magae: [], label: [] },
-  ];
-
-  async function handleSeed() {
-    if (!confirm("샘플 상품 5개를 Firestore에 추가하시겠습니까?")) return;
-    setSeeding(true);
-    for (const p of SEED_PRODUCTS) await addGlobalProduct(p);
-    setProducts(await getProducts());
-    setSeeding(false);
-  }
+  const [productSort, setProductSort] = useState<ProductSort>("category");
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [targetProductId, setTargetProductId] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
     if (!user || !profile) { router.replace("/login"); return; }
     if (!profile.isAdmin) { setFetching(false); return; }
-    Promise.all([getBusinessClients(), getProducts(), getAllOrders()]).then(([c, p, o]) => {
+    Promise.all([getClients(), getProducts(), getAllOrders()]).then(([c, p, o]) => {
       setClients(c); setProducts(p); setOrders(o); setFetching(false);
     });
   }, [loading, user, profile, router]);
@@ -88,52 +75,30 @@ export default function AdminPage() {
     if (!confirm("이 제품을 삭제하시겠습니까?")) return;
     await deleteGlobalProduct(productId);
     setProducts((p) => p.filter((x) => x.id !== productId));
-    if (expandedId === productId) setExpandedId(null);
   }
 
-  async function handleAddYongyang(product: Product) {
-    const val = yongyangInput.trim();
-    if (!val || product.yongyang.includes(val)) return;
-    const updated = [...product.yongyang, val];
-    await updateGlobalProduct(product.id, { yongyang: updated });
-    setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, yongyang: updated } : p));
-    setYongyangInput("");
+  function openImageUpload(productId: string) {
+    setTargetProductId(productId);
+    fileInputRef.current?.click();
   }
 
-  async function handleRemoveYongyang(product: Product, idx: number) {
-    const updated = product.yongyang.filter((_, i) => i !== idx);
-    await updateGlobalProduct(product.id, { yongyang: updated });
-    setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, yongyang: updated } : p));
-  }
-
-  async function handleAddMagae(product: Product) {
-    const val = magaeInput.trim();
-    if (!val || product.magae.includes(val)) return;
-    const updated = [...product.magae, val];
-    await updateGlobalProduct(product.id, { magae: updated });
-    setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, magae: updated } : p));
-    setMagaeInput("");
-  }
-
-  async function handleRemoveMagae(product: Product, idx: number) {
-    const updated = product.magae.filter((_, i) => i !== idx);
-    await updateGlobalProduct(product.id, { magae: updated });
-    setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, magae: updated } : p));
-  }
-
-  async function handleAddLabel(product: Product) {
-    const val = labelInput.trim();
-    if (!val) return;
-    const updated = [...product.label, val];
-    await updateGlobalProduct(product.id, { label: updated });
-    setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, label: updated } : p));
-    setLabelInput("");
-  }
-
-  async function handleRemoveLabel(product: Product, idx: number) {
-    const updated = product.label.filter((_, i) => i !== idx);
-    await updateGlobalProduct(product.id, { label: updated });
-    setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, label: updated } : p));
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !targetProductId) return;
+    setUploadingId(targetProductId);
+    try {
+      const storageRef = ref(storage, `products/${targetProductId}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      await updateGlobalProduct(targetProductId, { imageUrl: url });
+      setProducts((prev) =>
+        prev.map((p) => p.id === targetProductId ? { ...p, imageUrl: url } : p)
+      );
+    } finally {
+      setUploadingId(null);
+      setTargetProductId(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   if (loading || fetching) {
@@ -152,14 +117,25 @@ export default function AdminPage() {
   }
 
   const filteredClients = clients.filter(
-    (c) => c.name.includes(search) || c.username.includes(search) || c.phone.includes(search)
+    (c) => c.name.includes(search) || (c.phone ?? "").includes(search)
   );
   const typeFiltered = orders.filter((o) => orderFilter === "all" || o.type === orderFilter);
   const activeOrders = typeFiltered.filter((o) => !PAST_STATUSES.includes(o.status));
   const pastOrders = typeFiltered.filter((o) => PAST_STATUSES.includes(o.status));
   const shownOrders = orderView === "active" ? activeOrders : pastOrders;
 
-  const inputClass = "border border-stone-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white";
+  const productsWithCount = products.map((p) => ({
+    ...p,
+    clientCount: clients.filter((c) =>
+      c.purchaseItems?.some((item) => item.name === p.name)
+    ).length,
+  }));
+
+  const sortedProducts = [...productsWithCount].sort((a, b) => {
+    if (productSort === "alpha") return a.name.localeCompare(b.name, "ko");
+    if (productSort === "clients") return b.clientCount - a.clientCount || a.name.localeCompare(b.name, "ko");
+    return CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) || a.name.localeCompare(b.name, "ko");
+  });
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -173,15 +149,23 @@ export default function AdminPage() {
         </button>
       </header>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageUpload}
+      />
+
       <div className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
         <div className="flex gap-1 mb-6 bg-stone-100 rounded-xl p-1 w-fit">
           {(["clients", "products", "orders"] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === t ? "bg-white text-stone-800 shadow-sm" : "text-stone-400 hover:text-stone-700"}`}>
               {t === "clients" ? "거래처 관리" : t === "products" ? "제품 관리" : (() => {
-              const active = orders.filter((o) => !PAST_STATUSES.includes(o.status));
-              return `주문 관리${active.length > 0 ? ` (${active.length})` : ""}`;
-            })()}
+                const active = orders.filter((o) => !PAST_STATUSES.includes(o.status));
+                return `주문 관리${active.length > 0 ? ` (${active.length})` : ""}`;
+              })()}
             </button>
           ))}
         </div>
@@ -194,7 +178,7 @@ export default function AdminPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
               </svg>
               <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder="거래처명, 아이디, 연락처로 검색"
+                placeholder="거래처명, 연락처로 검색"
                 className="w-full pl-11 pr-4 py-3 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-sm" />
             </div>
             {filteredClients.length === 0 ? (
@@ -204,15 +188,22 @@ export default function AdminPage() {
             ) : (
               <div className="grid gap-2">
                 {filteredClients.map((client) => (
-                  <Link key={client.uid} href={`/admin/clients/${client.uid}`}
+                  <Link key={client.id} href={`/admin/clients/${client.id}`}
                     className="bg-white rounded-xl border border-stone-200 px-6 py-4 flex items-center justify-between hover:border-orange-300 hover:shadow-sm transition-all group">
                     <div>
                       <p className="font-semibold text-stone-800 group-hover:text-orange-600 transition-colors">{client.name}</p>
-                      <p className="text-xs text-stone-400 mt-0.5">@{client.username} · {client.phone}</p>
+                      <p className="text-xs text-stone-400 mt-0.5">
+                        {client.type ?? ""}{client.phone ? ` · ${client.phone}` : ""}
+                      </p>
                     </div>
-                    <svg className="w-4 h-4 text-stone-300 group-hover:text-orange-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${client.linkedUserId ? "bg-green-50 text-green-600" : "bg-stone-100 text-stone-400"}`}>
+                        {client.linkedUserId ? "연결됨" : "미연결"}
+                      </span>
+                      <svg className="w-4 h-4 text-stone-300 group-hover:text-orange-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
                   </Link>
                 ))}
               </div>
@@ -224,11 +215,21 @@ export default function AdminPage() {
         {/* 제품 관리 */}
         {tab === "products" && (
           <>
-            <div className="flex justify-end gap-2 mb-4">
-              <button onClick={handleSeed} disabled={seeding}
-                className="bg-stone-700 hover:bg-stone-800 disabled:bg-stone-300 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
-                {seeding ? "추가 중..." : "샘플 데이터"}
-              </button>
+            <div className="flex items-center justify-between mb-4">
+              {/* 정렬 버튼 */}
+              <div className="flex gap-1 bg-stone-100 rounded-xl p-1">
+                {([
+                  { key: "category", label: "카테고리순" },
+                  { key: "alpha",    label: "가나다순" },
+                  { key: "clients",  label: "거래처 연동순" },
+                ] as { key: ProductSort; label: string }[]).map(({ key, label }) => (
+                  <button key={key} onClick={() => setProductSort(key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${productSort === key ? "bg-white text-stone-800 shadow-sm" : "text-stone-400 hover:text-stone-700"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* 제품 추가 */}
               <button onClick={() => setShowAddModal(true)}
                 className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,108 +239,65 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {products.length === 0 ? (
+            {sortedProducts.length === 0 ? (
               <div className="text-center py-12 text-stone-400 text-sm">
                 <p className="mb-3">등록된 제품이 없습니다.</p>
                 <button onClick={() => setShowAddModal(true)} className="text-orange-600 hover:underline text-sm font-medium">첫 제품 추가하기</button>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {products.map((product) => {
-                  const isExpanded = expandedId === product.id;
-                  return (
-                    <div key={product.id} className={`bg-white rounded-xl border-2 overflow-hidden transition-colors ${isExpanded ? "border-orange-400" : "border-stone-200 hover:border-orange-200"}`}>
-                      <div className="aspect-square bg-stone-50">
-                        {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-stone-200">
-                            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-3">
-                        <span className="text-xs bg-orange-50 text-orange-600 font-semibold px-2 py-0.5 rounded-full">{product.category}</span>
-                        <p className="font-semibold text-stone-800 text-sm text-center mt-2 mb-3">{product.name}</p>
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => { setExpandedId(isExpanded ? null : product.id); setYongyangInput(""); setMagaeInput(""); setLabelInput(""); }}
-                            className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors border ${isExpanded ? "bg-orange-600 border-orange-600 text-white" : "border-stone-200 text-stone-500 hover:border-orange-400 hover:text-orange-600"}`}>
-                            {isExpanded ? "접기" : "옵션"}
-                          </button>
-                          <button onClick={() => handleDeleteProduct(product.id)}
-                            className="flex-1 text-xs py-1.5 rounded-lg font-medium border border-stone-200 text-stone-400 hover:border-red-300 hover:text-red-500 transition-colors">
-                            삭제
-                          </button>
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="border-t border-orange-100 px-3 py-3 space-y-3 bg-orange-50">
-                          {/* 용량 */}
-                          <div>
-                            <p className="text-xs font-semibold text-stone-500 mb-1.5">용량</p>
-                            <div className="flex flex-wrap gap-1 mb-1.5">
-                              {product.yongyang.map((val, idx) => (
-                                <span key={idx} className="flex items-center gap-0.5 bg-white text-orange-700 text-xs px-2 py-0.5 rounded border border-orange-200">
-                                  {val}
-                                  <button onClick={() => handleRemoveYongyang(product, idx)} className="text-orange-300 hover:text-red-500 ml-0.5">×</button>
-                                </span>
-                              ))}
-                              {product.yongyang.length === 0 && <span className="text-xs text-stone-300">없음</span>}
-                            </div>
-                            <div className="flex gap-1">
-                              <input type="text" value={yongyangInput} onChange={(e) => setYongyangInput(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddYongyang(product))}
-                                placeholder="500ml" className={`flex-1 min-w-0 ${inputClass}`} />
-                              <button onClick={() => handleAddYongyang(product)} className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1 rounded text-xs font-semibold">+</button>
-                            </div>
-                          </div>
-                          {/* 마개 */}
-                          <div>
-                            <p className="text-xs font-semibold text-stone-500 mb-1.5">마개</p>
-                            <div className="flex flex-wrap gap-1 mb-1.5">
-                              {product.magae.map((val, idx) => (
-                                <span key={idx} className="flex items-center gap-0.5 bg-white text-blue-700 text-xs px-2 py-0.5 rounded border border-blue-200">
-                                  {val}
-                                  <button onClick={() => handleRemoveMagae(product, idx)} className="text-blue-300 hover:text-red-500 ml-0.5">×</button>
-                                </span>
-                              ))}
-                              {product.magae.length === 0 && <span className="text-xs text-stone-300">없음</span>}
-                            </div>
-                            <div className="flex gap-1">
-                              <input type="text" value={magaeInput} onChange={(e) => setMagaeInput(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddMagae(product))}
-                                placeholder="일반" className={`flex-1 min-w-0 ${inputClass}`} />
-                              <button onClick={() => handleAddMagae(product)} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold">+</button>
-                            </div>
-                          </div>
-                          {/* 라벨 */}
-                          <div>
-                            <p className="text-xs font-semibold text-stone-500 mb-1.5">라벨</p>
-                            <div className="flex flex-wrap gap-1 mb-1.5">
-                              {product.label.map((val, idx) => (
-                                <span key={idx} className="flex items-center gap-0.5 bg-white text-stone-700 text-xs px-2 py-0.5 rounded border border-stone-200">
-                                  {val}
-                                  <button onClick={() => handleRemoveLabel(product, idx)} className="text-stone-300 hover:text-red-400 ml-0.5">×</button>
-                                </span>
-                              ))}
-                              {product.label.length === 0 && <span className="text-xs text-stone-300">없음</span>}
-                            </div>
-                            <div className="flex gap-1">
-                              <input type="text" value={labelInput} onChange={(e) => setLabelInput(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddLabel(product))}
-                                placeholder="태백식품" className={`flex-1 min-w-0 ${inputClass}`} />
-                              <button onClick={() => handleAddLabel(product)} className="bg-stone-700 hover:bg-stone-800 text-white px-2 py-1 rounded text-xs font-semibold">+</button>
-                            </div>
-                          </div>
+                {sortedProducts.map((product) => (
+                  <div key={product.id} className="bg-white rounded-xl border-2 border-stone-200 overflow-hidden">
+                    {/* 이미지 영역 */}
+                    <div className="relative aspect-square bg-stone-50 group">
+                      {product.imageUrl ? (
+                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-stone-200">
+                          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
                         </div>
                       )}
+                      {/* 사진 업로드 오버레이 */}
+                      <button
+                        onClick={() => openImageUpload(product.id)}
+                        disabled={uploadingId === product.id}
+                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        {uploadingId === product.id ? (
+                          <span className="text-white text-xs font-semibold">업로드 중...</span>
+                        ) : (
+                          <span className="text-white text-xs font-semibold">사진 변경</span>
+                        )}
+                      </button>
                     </div>
-                  );
-                })}
+
+                    {/* 제품 정보 */}
+                    <div className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs bg-orange-50 text-orange-600 font-semibold px-2 py-0.5 rounded-full">{product.category}</span>
+                        {product.clientCount > 0 && (
+                          <span className="text-xs text-stone-400">거래처 {product.clientCount}</span>
+                        )}
+                      </div>
+                      <p className="font-semibold text-stone-800 text-sm text-center mt-2 mb-3">{product.name}</p>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => openImageUpload(product.id)}
+                          disabled={uploadingId === product.id}
+                          className="flex-1 text-xs py-1.5 rounded-lg font-medium border border-stone-200 text-stone-500 hover:border-orange-400 hover:text-orange-600 transition-colors"
+                        >
+                          {uploadingId === product.id ? "업로드 중" : "사진 업로드"}
+                        </button>
+                        <button onClick={() => handleDeleteProduct(product.id)}
+                          className="flex-1 text-xs py-1.5 rounded-lg font-medium border border-stone-200 text-stone-400 hover:border-red-300 hover:text-red-500 transition-colors">
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </>
@@ -348,7 +306,6 @@ export default function AdminPage() {
         {/* 주문 관리 */}
         {tab === "orders" && (
           <>
-            {/* 진행중 / 이전주문 서브탭 */}
             <div className="flex gap-1 bg-stone-100 rounded-xl p-1 w-fit mb-4">
               <button onClick={() => setOrderView("active")}
                 className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${orderView === "active" ? "bg-white text-stone-800 shadow-sm" : "text-stone-400 hover:text-stone-700"}`}>
@@ -360,7 +317,6 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* 소매/도매 필터 */}
             <div className="flex gap-1 bg-stone-100 rounded-xl p-1 w-fit mb-4">
               {(["all", "retail", "wholesale"] as const).map((f) => (
                 <button key={f} onClick={() => setOrderFilter(f)}

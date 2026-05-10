@@ -17,6 +17,7 @@ export interface UserProfile {
   email: string;      // 이메일 (Firebase Auth 및 비밀번호 재설정용)
   type: "business" | "individual"; // 기존 거래처 | 신규 및 개인
   isAdmin?: boolean;  // 관리자 여부 (Firestore에서 수동 설정)
+  clientId?: string;  // clients 컬렉션 연결 ID
   createdAt: string;
 }
 
