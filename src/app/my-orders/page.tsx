@@ -4,25 +4,31 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { getMyOrders, Order, ORDER_STATUS_LABEL, OrderStatus, fmtQty } from "@/lib/orders";
+import {
+  getStaffOrdersByPartner,
+  StaffOrder,
+  StaffOrderStatus,
+  STAFF_ORDER_STATUS_LABEL,
+  fmtStaffOrderItem,
+} from "@/lib/staffData";
 import Logo from "@/components/Logo";
 import SiteFooter from "@/components/SiteFooter";
 
-const STATUS_COLOR: Record<OrderStatus, string> = {
-  pending:   "bg-amber-50 text-amber-700 border border-amber-200",
-  confirmed: "bg-blue-50 text-blue-700 border border-blue-200",
-  preparing: "bg-purple-50 text-purple-700 border border-purple-200",
-  shipped:   "bg-indigo-50 text-indigo-700 border border-indigo-200",
-  delivered: "bg-green-50 text-green-700 border border-green-200",
-  cancelled: "bg-red-50 text-red-600 border border-red-200",
+const STATUS_COLOR: Record<StaffOrderStatus, string> = {
+  PENDING:    "bg-amber-50 text-amber-700 border border-amber-200",
+  PROCESSING: "bg-blue-50 text-blue-700 border border-blue-200",
+  SHIPPED:    "bg-indigo-50 text-indigo-700 border border-indigo-200",
+  DISPATCHED: "bg-purple-50 text-purple-700 border border-purple-200",
+  DELIVERED:  "bg-green-50 text-green-700 border border-green-200",
+  ON_HOLD:    "bg-stone-50 text-stone-600 border border-stone-200",
 };
 
-const PAST_STATUSES: OrderStatus[] = ["shipped", "delivered"];
+const PAST_STATUSES: StaffOrderStatus[] = ["SHIPPED", "DISPATCHED", "DELIVERED"];
 
 export default function MyOrdersPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const { user, profile, loading } = useAuth();
+  const [orders, setOrders] = useState<StaffOrder[]>([]);
   const [fetching, setFetching] = useState(true);
   const [view, setView] = useState<"active" | "past">("active");
 
@@ -31,9 +37,11 @@ export default function MyOrdersPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (!user) return;
-    getMyOrders(user.uid).then((data) => { setOrders(data); setFetching(false); });
-  }, [user]);
+    if (!user || !profile) return;
+    const pid = profile.linkedPartnerId;
+    if (!pid) { setOrders([]); setFetching(false); return; }
+    getStaffOrdersByPartner(pid).then((data) => { setOrders(data); setFetching(false); });
+  }, [user, profile]);
 
   const activeOrders = orders.filter((o) => !PAST_STATUSES.includes(o.status));
   const pastOrders = orders.filter((o) => PAST_STATUSES.includes(o.status));
@@ -95,7 +103,7 @@ export default function MyOrdersPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLOR[order.status]}`}>
-                      {ORDER_STATUS_LABEL[order.status]}
+                      {STAFF_ORDER_STATUS_LABEL[order.status]}
                     </span>
                     <span className="text-xs text-stone-400">
                       {new Date(order.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
@@ -107,15 +115,20 @@ export default function MyOrdersPage() {
                 <ul className="space-y-1.5 mb-3">
                   {order.items.map((item, i) => (
                     <li key={i} className="flex justify-between text-sm">
-                      <span className="text-stone-700">{item.productName} <span className="text-stone-400">({item.yongyang})</span></span>
-                      <span className="font-semibold text-stone-800">{fmtQty(item)}</span>
+                      <span className="text-stone-700">
+                        {item.name}
+                        {item.displaySize && <span className="text-stone-400"> ({item.displaySize})</span>}
+                      </span>
+                      <span className="font-semibold text-stone-800">{fmtStaffOrderItem(item)}</span>
                     </li>
                   ))}
                 </ul>
 
                 <div className="pt-3 border-t border-stone-100 text-xs text-stone-500 space-y-0.5">
-                  <p>{order.ordererName} · {order.phone}</p>
-                  <p>{order.address}</p>
+                  {(order.ordererName || order.phone) && (
+                    <p>{order.ordererName ?? ""}{order.ordererName && order.phone ? " · " : ""}{order.phone ?? ""}</p>
+                  )}
+                  {order.address && <p>{order.address}</p>}
                   {order.memo && <p className="text-stone-400">비고: {order.memo}</p>}
                 </div>
               </div>

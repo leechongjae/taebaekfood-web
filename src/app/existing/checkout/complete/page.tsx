@@ -3,19 +3,17 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { getOrdersByGroupId, Order, fmtQty } from "@/lib/orders";
+import { getStaffOrder, StaffOrder, fmtStaffOrderItem } from "@/lib/staffData";
 import Logo from "@/components/Logo";
 
 function WholesaleCompleteContent() {
   const params = useSearchParams();
-  const groupId = params.get("groupId");
-  const [orders, setOrders] = useState<Order[]>([]);
+  const orderId = params.get("orderId");
+  const [order, setOrder] = useState<StaffOrder | null>(null);
 
   useEffect(() => {
-    if (groupId) getOrdersByGroupId(groupId).then(setOrders);
-  }, [groupId]);
-
-  const first = orders[0];
+    if (orderId) getStaffOrder(orderId).then(setOrder);
+  }, [orderId]);
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -33,29 +31,25 @@ function WholesaleCompleteContent() {
           <h1 className="text-xl font-bold text-stone-900 mb-2">주문이 접수되었습니다</h1>
           <p className="text-sm text-stone-500 mb-6">담당자 확인 후 연락드리겠습니다.</p>
 
-          {orders.length > 0 && (
+          {order && (
             <div className="bg-stone-50 rounded-xl p-4 text-left text-sm space-y-2 mb-6">
-              <p className="text-xs font-semibold text-stone-400 mb-3">주문 내역 ({orders.length}종)</p>
-              {orders.map((order, i) => {
-                const item = order.items[0];
-                return (
-                  <div key={i} className="flex justify-between">
-                    <span className="text-stone-600">
-                      {item.productName} <span className="text-stone-400">({item.yongyang})</span>
-                    </span>
-                    <span className="font-semibold text-stone-800">{fmtQty(item)}</span>
-                  </div>
-                );
-              })}
-              {first && (
-                <div className="pt-2 border-t border-stone-200 space-y-1 text-xs text-stone-500">
-                  <p>주문자: {first.ordererName}</p>
-                  <p>연락처: {first.phone}</p>
-                  <p>배송 희망일: {first.deliveryDate}</p>
-                  <p>주소: {first.address}</p>
-                  {first.memo && <p>비고: {first.memo}</p>}
+              <p className="text-xs font-semibold text-stone-400 mb-3">주문 내역 ({order.items.length}종)</p>
+              {order.items.map((item, i) => (
+                <div key={i} className="flex justify-between">
+                  <span className="text-stone-600">
+                    {item.name}
+                    {item.displaySize && <span className="text-stone-400"> ({item.displaySize})</span>}
+                  </span>
+                  <span className="font-semibold text-stone-800">{fmtStaffOrderItem(item)}</span>
                 </div>
-              )}
+              ))}
+              <div className="pt-2 border-t border-stone-200 space-y-1 text-xs text-stone-500">
+                {order.ordererName && <p>주문자: {order.ordererName}</p>}
+                {order.phone && <p>연락처: {order.phone}</p>}
+                <p>배송 희망일: {order.deliveryDate}</p>
+                {order.address && <p>주소: {order.address}</p>}
+                {order.memo && <p>비고: {order.memo}</p>}
+              </div>
             </div>
           )}
 

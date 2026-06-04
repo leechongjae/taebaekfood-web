@@ -4,17 +4,19 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { createOrder } from "@/lib/orders";
+import { createStaffOrder, StaffOrderItemInput } from "@/lib/staffData";
 import { WholesaleCartItem } from "@/app/existing/page";
 import Logo from "@/components/Logo";
 
+const CART_KEY = "tb_wholesale_cart_v2";
+
 function getCart(): WholesaleCartItem[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem("taebaek_wholesale_cart") ?? "[]"); }
+  try { return JSON.parse(localStorage.getItem(CART_KEY) ?? "[]"); }
   catch { return []; }
 }
 function saveCart(cart: WholesaleCartItem[]) {
-  localStorage.setItem("taebaek_wholesale_cart", JSON.stringify(cart));
+  localStorage.setItem(CART_KEY, JSON.stringify(cart));
 }
 
 function formatPhone(val: string) {
@@ -95,7 +97,11 @@ export default function WholesaleCheckoutPage() {
 
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !profile) return;
+    if (!profile.linkedPartnerId) {
+      alert("거래처 연결 정보가 없습니다. 관리자에게 문의해주세요.");
+      return;
+    }
     if (cart.length === 0) { alert("장바구니가 비어 있습니다."); return; }
     if (cart.some((c) => c.quantity < 1)) { alert("수량을 1 이상 입력해주세요."); return; }
     if (!form.ordererName || !form.phone || !form.address || !form.deliveryDate) {
@@ -107,18 +113,37 @@ export default function WholesaleCheckoutPage() {
     }
     setSubmitting(true);
     const fullAddress = form.addressDetail ? `${form.address} ${form.addressDetail}` : form.address;
-    const groupId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+    // staff Order 스키마로 변환 — 박스 단위는 quantity = 박스수 × 박스당개수
+    const staffItems: StaffOrderItemInput[] = cart.map((c) => {
+      const isBox = c.unit === "박스" && (c.qtyPerBox ?? 0) > 0;
+      const finalQty = isBox ? c.quantity * (c.qtyPerBox as number) : c.quantity;
+      return {
+        itemId: c.itemId,
+        name: c.name,
+        quantity: finalQty,
+        price: c.price ?? 0,
+        isBoxUnit: isBox,
+        boxQuantity: isBox ? c.quantity : undefined,
+        unitsPerBox: isBox ? c.qtyPerBox : undefined,
+        displaySize: c.displaySize ?? c.spec,
+      };
+    });
+
     try {
-      for (const c of cart) {
-        await createOrder({
-          userId: user.uid, userEmail: user.email ?? "", type: "wholesale",
-          items: [{ productId: c.productId, productName: c.productName, category: c.category, yongyang: c.yongyang, quantity: c.quantity, unit: c.unit, boxType: c.boxType, boxQty: c.boxQty }],
-          ordererName: form.ordererName, phone: form.phone, address: fullAddress, deliveryDate: form.deliveryDate, memo: form.memo,
-          groupId,
-        });
-      }
+      const orderId = await createStaffOrder({
+        partnerId: profile.linkedPartnerId,
+        partnerName: profile.linkedPartnerName ?? profile.name,
+        items: staffItems,
+        deliveryDate: form.deliveryDate,
+        email: user.email ?? profile.email ?? "",
+        memo: form.memo || undefined,
+        ordererName: form.ordererName,
+        phone: form.phone,
+        address: fullAddress,
+      });
       saveCart([]);
-      router.push(`/existing/checkout/complete?groupId=${groupId}`);
+      router.push(`/existing/checkout/complete?orderId=${orderId}`);
     } catch (err) {
       console.error(err);
       alert("주문 중 오류가 발생했습니다. 다시 시도해주세요.");
@@ -137,7 +162,7 @@ export default function WholesaleCheckoutPage() {
           </svg>
         </Link>
         <Logo />
-        <span className="ml-2 text-sm font-semibold text-stone-700">도매 주문서</span>
+        <span className="ml-2 text-sm font-semibold text-stone-700">거래처 주문서</span>
         <span className="text-xs bg-orange-50 text-orange-600 font-semibold px-2 py-0.5 rounded-full border border-orange-200">결제 없음</span>
       </header>
 
@@ -157,8 +182,10 @@ export default function WholesaleCheckoutPage() {
               {cart.map((item, idx) => (
                 <li key={idx} className="px-5 py-4 flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-stone-800 text-sm">{item.productName}</p>
-                    <p className="text-xs text-stone-400 mt-0.5">{item.yongyang}</p>
+                    <p className="font-medium text-stone-800 text-sm">{item.name}</p>
+                    <p className="text-xs text-stone-400 mt-0.5">
+                      {item.spec}{item.spec && (item.categoryLabel ? " · " : "")}{item.categoryLabel}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex flex-col items-end gap-0.5">
@@ -181,8 +208,8 @@ export default function WholesaleCheckoutPage() {
                         <button type="button" onClick={() => updateQty(idx, 1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm">+</button>
                       </div>
                       <span className="text-[10px] text-stone-400">
-                        {item.unit === "박스" && item.boxQty
-                          ? `${item.unit} (${item.quantity * item.boxQty}개)`
+                        {item.unit === "박스" && item.qtyPerBox
+                          ? `${item.unit} (${item.quantity * item.qtyPerBox}개)`
                           : item.unit ?? "개"}
                       </span>
                     </div>

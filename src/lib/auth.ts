@@ -17,7 +17,12 @@ export interface UserProfile {
   email: string;      // 이메일 (Firebase Auth 및 비밀번호 재설정용)
   type: "business" | "individual"; // 기존 거래처 | 신규 및 개인
   isAdmin?: boolean;  // 관리자 여부 (Firestore에서 수동 설정)
-  clientId?: string;  // clients 컬렉션 연결 ID
+  clientId?: string;  // clients 컬렉션 연결 ID (구형)
+  status?: "pending" | "approved" | "rejected"; // business 가입 시에만 사용 — staff admin 승인 필요
+  linkedPartnerId?: string | null;              // staff partners 컬렉션 ID (승인 시 매핑)
+  linkedPartnerName?: string | null;            // staff partners.name 스냅샷 (표시용)
+  approvedAt?: string;
+  rejectedAt?: string;
   createdAt: string;
 }
 
@@ -55,7 +60,8 @@ export async function register(
   await updateProfile(credential.user, { displayName: name });
 
   // Firestore에 사용자 정보 저장
-  await setDoc(doc(db, "users", credential.user.uid), {
+  // business(기존 거래처) 가입은 staff admin의 승인 + 거래처 연결을 거쳐야 주문 가능
+  const profile: Record<string, unknown> = {
     uid: credential.user.uid,
     username,
     name,
@@ -63,7 +69,12 @@ export async function register(
     email,
     type,
     createdAt: new Date().toISOString(),
-  });
+  };
+  if (type === "business") {
+    profile.status = "pending";
+    profile.linkedPartnerId = null;
+  }
+  await setDoc(doc(db, "users", credential.user.uid), profile);
 }
 
 // 로그인 (username → Firestore에서 실제 이메일 조회 후 인증)
