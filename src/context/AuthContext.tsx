@@ -33,9 +33,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
+      // getUserProfile이 던지는 예외(Firestore 권한 거부, users 문서 없음 등)로
+      // setLoading(false)가 호출되지 못해 헤더 전체가 렌더링되지 않는 문제 방지
       if (firebaseUser) {
-        const userProfile = await getUserProfile(firebaseUser.uid);
-        setProfile(userProfile);
+        try {
+          const userProfile = await getUserProfile(firebaseUser.uid);
+          setProfile(userProfile);
+        } catch (e) {
+          console.error("[AuthContext] getUserProfile failed:", e);
+          setProfile(null);
+        }
       } else {
         setProfile(null);
       }

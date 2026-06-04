@@ -21,11 +21,13 @@ export default function HomePage() {
       <header className="bg-white/70 backdrop-blur-sm border-b border-stone-200/60 px-6 py-4 flex items-center justify-between">
         <Logo />
         {!loading && (
-          user && profile ? (
+          user ? (
             <div className="flex items-center gap-3">
-              <span className="text-sm text-stone-500">
-                <span className="font-semibold text-stone-800">{profile.name}</span> 님
-              </span>
+              {profile?.name && (
+                <span className="text-sm text-stone-500">
+                  <span className="font-semibold text-stone-800">{profile.name}</span> 님
+                </span>
+              )}
               <button
                 onClick={handleLogout}
                 className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
