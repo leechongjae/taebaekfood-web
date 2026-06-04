@@ -46,16 +46,21 @@ function labelOf(cat: string, subtype?: string): string {
 export async function getPartnerItemsForOrder(partnerId: string): Promise<StaffPartnerItem[]> {
   if (!partnerId) return [];
 
-  const piSnap = await getDocs(
-    query(
-      collection(db, "partner_item"),
-      where("Partner_ID", "==", partnerId),
-      where("Direction", "==", "out"),
+  const [piSnap, srSnap] = await Promise.all([
+    getDocs(
+      query(
+        collection(db, "partner_item"),
+        where("Partner_ID", "==", partnerId),
+        where("Direction", "==", "out"),
+      ),
     ),
-  );
+    // shipping_rule 컬렉션 — 박스당 개수의 정식 출처 (거래처별 오버라이드 + 전체 기본값)
+    getDocs(collection(db, "shipping_rule")),
+  ]);
   if (piSnap.empty) return [];
 
   const piDocs = piSnap.docs.map((d) => d.data() as Record<string, unknown>);
+  const srDocs = srSnap.docs.map((d) => d.data() as Record<string, unknown>);
   const itemIds = Array.from(
     new Set(piDocs.map((d) => d.Item_ID as string).filter(Boolean)),
   );
@@ -73,6 +78,23 @@ export async function getPartnerItemsForOrder(partnerId: string): Promise<StaffP
     itSnap.docs.forEach((d) => itemMap.set(d.id, d.data() as Record<string, unknown>));
   }
 
+  // 박스당 개수 해석: partner_item.qtyPerBox/qty_per_box 우선
+  //   → shipping_rule (partner_id==이 거래처) → shipping_rule (partner_id 없음, 전체 기본값)
+  const resolveQtyPerBox = (itemId: string, piQty?: number): number | undefined => {
+    if (piQty && piQty > 0) return piQty;
+    const specific = srDocs.find(
+      (r) => r.item_id === itemId && r.partner_id === partnerId,
+    );
+    const specificQty = specific?.qty_per_box as number | undefined;
+    if (specificQty && specificQty > 0) return specificQty;
+    const fallback = srDocs.find(
+      (r) => r.item_id === itemId && !r.partner_id,
+    );
+    const fallbackQty = fallback?.qty_per_box as number | undefined;
+    if (fallbackQty && fallbackQty > 0) return fallbackQty;
+    return undefined;
+  };
+
   const seen = new Set<string>();
   const results: StaffPartnerItem[] = [];
   for (const pi of piDocs) {
@@ -84,8 +106,9 @@ export async function getPartnerItemsForOrder(partnerId: string): Promise<StaffP
 
     const category = (item.category as string) ?? "";
     const subtype = item.subtype as string | undefined;
-    const qtyPerBox =
+    const piQty =
       (pi.qtyPerBox as number | undefined) ?? (pi.qty_per_box as number | undefined);
+    const qtyPerBox = resolveQtyPerBox(itemId, piQty);
 
     results.push({
       itemId,
@@ -94,7 +117,7 @@ export async function getPartnerItemsForOrder(partnerId: string): Promise<StaffP
       category,
       categoryLabel: labelOf(category, subtype),
       subtype,
-      qtyPerBox: qtyPerBox && qtyPerBox > 0 ? qtyPerBox : undefined,
+      qtyPerBox,
       price:
         (pi.price as number | undefined) ??
         (pi.Standard_Price as number | undefined) ??

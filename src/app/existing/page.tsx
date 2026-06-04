@@ -41,6 +41,8 @@ export default function ExistingPage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   // 항목별 단위 선택: 'box' 또는 'each'. qtyPerBox가 있으면 기본 box, 없으면 each.
   const [unitMode, setUnitMode] = useState<Record<string, "box" | "each">>({});
+  // 펼쳐진(수량 입력 가능한) 카드 ID
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
 
   useEffect(() => { refreshProfile(); }, []); // eslint-disable-line
 
@@ -63,7 +65,7 @@ export default function ExistingPage() {
         const initQty: Record<string, number> = {};
         const initUnit: Record<string, "box" | "each"> = {};
         data.forEach((p) => {
-          initQty[p.itemId] = 1;
+          initQty[p.itemId] = 0;
           initUnit[p.itemId] = p.qtyPerBox ? "box" : "each";
         });
         setQuantities(initQty);
@@ -79,7 +81,7 @@ export default function ExistingPage() {
   }
 
   function updateQty(itemId: string, delta: number) {
-    setQuantities((prev) => ({ ...prev, [itemId]: Math.max(1, (prev[itemId] || 1) + delta) }));
+    setQuantities((prev) => ({ ...prev, [itemId]: Math.max(0, (prev[itemId] || 0) + delta) }));
   }
 
   function handleAddToCart(item: StaffPartnerItem) {
@@ -105,6 +107,9 @@ export default function ExistingPage() {
     }
     setCart(next);
     saveCart(next);
+    // 담은 뒤에는 수량 초기화 + 카드 접기 — 같은 품목 중복 담기 방지
+    setQuantities((prev) => ({ ...prev, [item.itemId]: 0 }));
+    setOpenItemId(null);
   }
 
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
@@ -233,57 +238,96 @@ export default function ExistingPage() {
                 </div>
                 <ul className="divide-y divide-stone-100">
                   {list.map((it) => {
+                    const isOpen = openItemId === it.itemId;
                     const mode = unitMode[it.itemId] ?? (it.qtyPerBox ? "box" : "each");
+                    const qty = quantities[it.itemId] || 0;
                     return (
-                      <li key={it.itemId} className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-stone-800 text-sm">{it.name}</p>
-                          {it.spec && <p className="text-xs text-stone-400 mt-0.5">{it.spec}</p>}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {it.qtyPerBox ? (
-                            <div className="flex items-center text-[11px] rounded-lg border border-stone-200 overflow-hidden">
+                      <li key={it.itemId}>
+                        <button
+                          type="button"
+                          onClick={() => setOpenItemId((prev) => (prev === it.itemId ? null : it.itemId))}
+                          className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left hover:bg-stone-50/60 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-stone-800 text-sm">{it.name}</p>
+                            <p className="text-xs text-stone-400 mt-0.5">
+                              {it.spec}
+                              {it.spec && it.qtyPerBox ? " · " : ""}
+                              {it.qtyPerBox ? `1박스 = ${it.qtyPerBox}개` : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            {qty > 0 && (
+                              <span className="text-[11px] font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+                                {qty}{mode === "box" ? "박스" : "개"}
+                              </span>
+                            )}
+                            <svg
+                              className={`w-4 h-4 text-stone-300 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </button>
+                        {isOpen && (
+                          <div className="px-5 pb-4 pt-3 border-t border-stone-100 bg-stone-50/40">
+                            <div className="flex items-center justify-end gap-2 flex-wrap">
+                              {it.qtyPerBox ? (
+                                <div className="flex items-center text-[11px] rounded-lg border border-stone-200 overflow-hidden bg-white">
+                                  <button
+                                    type="button"
+                                    onClick={() => setUnitMode((prev) => ({ ...prev, [it.itemId]: "box" }))}
+                                    className={`px-3 py-1.5 transition-colors ${mode === "box" ? "bg-orange-600 text-white font-semibold" : "text-stone-500 hover:bg-stone-50"}`}
+                                  >
+                                    박스
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setUnitMode((prev) => ({ ...prev, [it.itemId]: "each" }))}
+                                    className={`px-3 py-1.5 transition-colors ${mode === "each" ? "bg-orange-600 text-white font-semibold" : "text-stone-500 hover:bg-stone-50"}`}
+                                  >
+                                    낱개
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-stone-400">낱개 단위</span>
+                              )}
+                              <div className="flex items-center border border-stone-200 rounded-lg overflow-hidden bg-white">
+                                <button type="button" onClick={() => updateQty(it.itemId, -1)} className="w-8 h-8 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm">−</button>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  autoFocus
+                                  value={qty || ""}
+                                  placeholder="0"
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/\D/g, "");
+                                    setQuantities((prev) => ({ ...prev, [it.itemId]: raw === "" ? 0 : parseInt(raw) }));
+                                  }}
+                                  onFocus={(e) => e.target.select()}
+                                  className="w-14 h-8 text-center text-xs font-medium text-stone-700 focus:outline-none bg-transparent placeholder-stone-300"
+                                />
+                                <button type="button" onClick={() => updateQty(it.itemId, 1)} className="w-8 h-8 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm">+</button>
+                              </div>
                               <button
-                                type="button"
-                                onClick={() => setUnitMode((prev) => ({ ...prev, [it.itemId]: "box" }))}
-                                className={`px-2.5 py-1.5 transition-colors ${mode === "box" ? "bg-orange-600 text-white font-semibold" : "text-stone-500 hover:bg-stone-50"}`}
+                                onClick={() => handleAddToCart(it)}
+                                disabled={qty < 1}
+                                className="text-xs bg-orange-600 hover:bg-orange-700 disabled:bg-stone-200 disabled:text-stone-400 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap font-medium"
                               >
-                                박스
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setUnitMode((prev) => ({ ...prev, [it.itemId]: "each" }))}
-                                className={`px-2.5 py-1.5 transition-colors ${mode === "each" ? "bg-orange-600 text-white font-semibold" : "text-stone-500 hover:bg-stone-50"}`}
-                              >
-                                낱개
+                                담기
                               </button>
                             </div>
-                          ) : (
-                            <span className="text-[11px] text-stone-400">낱개</span>
-                          )}
-                          <div className="flex items-center border border-stone-200 rounded-lg overflow-hidden">
-                            <button type="button" onClick={() => updateQty(it.itemId, -1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm">−</button>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={quantities[it.itemId] || ""}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/\D/g, "");
-                                setQuantities((prev) => ({ ...prev, [it.itemId]: raw === "" ? 0 : parseInt(raw) }));
-                              }}
-                              onFocus={(e) => e.target.select()}
-                              className="w-12 text-center text-xs font-medium text-stone-700 focus:outline-none bg-transparent"
-                            />
-                            <button type="button" onClick={() => updateQty(it.itemId, 1)} className="w-7 h-7 flex items-center justify-center text-stone-400 hover:bg-stone-50 text-sm">+</button>
+                            {mode === "box" && it.qtyPerBox && qty > 0 && (
+                              <p className="text-right text-[10px] text-stone-400 mt-1.5">
+                                박스 {qty}개 · 총 {qty * it.qtyPerBox}개
+                              </p>
+                            )}
                           </div>
-                          <button
-                            onClick={() => handleAddToCart(it)}
-                            className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg transition-colors whitespace-nowrap font-medium"
-                          >
-                            담기
-                          </button>
-                        </div>
+                        )}
                       </li>
                     );
                   })}
