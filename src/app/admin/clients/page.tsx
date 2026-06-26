@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { getBusinessClients, UserProfile } from "@/lib/auth";
 import {
@@ -13,13 +13,10 @@ import {
   ItemCustomer,
 } from "@/lib/clients";
 
-export default function ClientDetailPage({
-  params,
-}: {
-  params: Promise<{ uid: string }>;
-}) {
-  const { uid: clientId } = use(params);
+function ClientDetailContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const clientId = searchParams.get("uid") ?? "";
   const { user, profile, loading } = useAuth();
 
   const [client, setClient] = useState<Client | null>(null);
@@ -34,6 +31,7 @@ export default function ClientDetailPage({
     if (loading) return;
     if (!user || !profile) { router.replace("/login"); return; }
     if (!profile.isAdmin) { router.replace("/"); return; }
+    if (!clientId) { router.replace("/admin"); return; }
 
     Promise.all([
       getClient(clientId),
@@ -218,5 +216,17 @@ export default function ClientDetailPage({
         </section>
       </div>
     </main>
+  );
+}
+
+export default function ClientDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-stone-400 text-sm">불러오는 중...</p>
+      </div>
+    }>
+      <ClientDetailContent />
+    </Suspense>
   );
 }

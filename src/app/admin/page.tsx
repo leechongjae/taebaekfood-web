@@ -188,7 +188,7 @@ export default function AdminPage() {
             ) : (
               <div className="grid gap-2">
                 {filteredClients.map((client) => (
-                  <Link key={client.id} href={`/admin/clients/${client.id}`}
+                  <Link key={client.id} href={`/admin/clients?uid=${client.id}`}
                     className="bg-white rounded-xl border border-stone-200 px-6 py-4 flex items-center justify-between hover:border-orange-300 hover:shadow-sm transition-all group">
                     <div>
                       <p className="font-semibold text-stone-800 group-hover:text-orange-600 transition-colors">{client.name}</p>
